@@ -1,0 +1,599 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MÀN HÌNH CHỜ LỚP ONLINE</title>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+  
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { font-family:'Roboto',sans-serif; background:#f1f3f4; height:100vh; overflow:hidden; }
+    #configPopup { position:fixed; inset:0; background:rgba(0,0,0,0.6); display:flex; align-items:center; justify-content:center; z-index:100; }
+    .popup-card { background:#fff; width:90%; max-width:560px; border-radius:16px; box-shadow:0 20px 60px rgba(0,0,0,0.3); overflow:hidden; }
+    .popup-header { background:#1a73e8; color:#fff; padding:24px; text-align:center; font-size:1.5rem; font-weight:500; }
+    .popup-body { padding:28px; max-height:80vh; overflow-y:auto; }
+    .input-group { margin-bottom:24px; }
+    label { display:block; margin-bottom:8px; font-weight:500; color:#3c4043; }
+    input, textarea { width:100%; padding:12px; border:1px solid #dadce0; border-radius:8px; font-size:1rem; }
+    textarea { height:80px; resize:none; }
+    .grid { display:grid; grid-template-columns:repeat(3,1fr); gap:16px; }
+    .grid-lang { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+    .item {
+      padding:20px 12px; border:2px solid #dadce0; border-radius:12px; text-align:center; cursor:pointer; transition:0.2s;
+      background:#fff; font-size:0.95rem; font-weight:500;
+    }
+    .item:hover { border-color:#1a73e8; }
+    .item.selected { border-color:#1a73e8; background:#e8f0fe; }
+    .item img { width:56px; height:56px; margin-bottom:10px; object-fit:contain; }
+    .actions { display:flex; gap:12px; margin-top:28px; }
+    .btn { flex:1; padding:14px; border:none; border-radius:8px; font-size:1.1rem; font-weight:500; cursor:pointer; }
+    .btn-primary { background:#1a73e8; color:#fff; }
+    .btn-secondary { background:#f1f3f4; color:#3c4043; }
+
+    #waitingScreen { display:none; height:100vh; color:#fff; position:relative; overflow:hidden; background:#202124; }
+    .waiting-content { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; z-index:2; }
+    .message { font-size:2.9rem; font-weight:500; margin-bottom:20px; text-shadow:0 2px 12px rgba(0,0,0,0.6); text-align:center; padding:0 20px; line-height:1.3; }
+    .timer { font-size:7.5rem; font-weight:700; letter-spacing:6px; text-shadow:0 5px 25px rgba(0,0,0,0.7); }
+    .subtitle { font-size:1.4rem; margin-top:20px; opacity:0.9; }
+    .control-bar { position:absolute; bottom:32px; left:50%; transform:translateX(-50%); display:flex; gap:28px; z-index:10; }
+    .ctrl-btn {
+      background:rgba(255,255,255,0.15); backdrop-filter:blur(12px); color:#fff; border:none;
+      width:72px; height:72px; border-radius:50%; cursor:pointer; font-size:2.4rem; transition:all 0.3s;
+      display:flex; align-items:center; justify-content:center;
+    }
+    .ctrl-btn:hover { background:rgba(255,255,255,0.3); transform:scale(1.15); }
+    .bg-effect { position:absolute; inset:0; pointer-events:none; }
+
+    @keyframes fly { 0% { transform:translateX(-150px) translateY(100vh) rotate(0deg); opacity:0; } 10% { opacity:1; } 90% { opacity:1; } 100% { transform:translateX(100vw) translateY(-200px) rotate(60deg); opacity:0; } }
+    @keyframes fall { 0% { transform:translateY(-200px) translateX(-100px); opacity:0; } 15% { opacity:1; } 100% { transform:translateY(110vh) translateX(300px); opacity:0; } }
+    @keyframes twinkle { 0%,100% { opacity:0.3; } 50% { opacity:1; } }
+    @keyframes gradient { 0% { background-position:0% 50%; } 50% { background-position:100% 50%; } 100% { background-position:0% 50%; } }
+    @keyframes wave {
+      0% { transform:translateX(0); }
+      100% { transform:translateX(-200px); }
+    }
+
+    @keyframes bubbleRise {
+      0% { transform:translateY(0) scale(0.2); opacity:0; }
+      20% { opacity:0.6; }
+      80% { opacity:0.3; }
+      100% { transform:translateY(-120vh) scale(1); opacity:0; }
+    }
+
+    @keyframes swim {
+      0% { transform:translateX(0); }
+      100% { transform:translateX(calc(100vw + 300px)); }
+    }
+
+    @keyframes floatUpDown {
+      0%, 100% { transform:translateY(0); }
+      50% { transform:translateY(-40px); }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Popup cấu hình -->
+  <div id="configPopup">
+    <div class="popup-card">
+      <div class="popup-header" data-lang="header">Cấu hình màn hình chờ lớp học</div>
+      <div class="popup-body">
+
+        <div class="input-group">
+          <label data-lang="language">Ngôn ngữ / Language</label>
+          <div class="grid-lang">
+            <div class="item selected" data-lang="vi">Tiếng Việt</div>
+            <div class="item" data-lang="en">English</div>
+          </div>
+        </div>
+
+        <div class="input-group">
+          <label data-lang="welcome">Thông điệp chào mừng</label>
+          <textarea id="welcomeMsg">Chào mừng các em đến với lớp học online của chúng ta!</textarea>
+        </div>
+
+        <div class="input-group">
+          <label data-lang="time">Thời gian chờ (phút)</label>
+          <input type="number" id="waitTime" value="10" min="1" max="120">
+        </div>
+
+        <div class="input-group">
+          <label data-lang="effect">Chọn hiệu ứng nền</label>
+          <div class="grid" id="effectGrid">
+            <div class="item selected" data-effect="balloons">
+              <img src="https://cdn-icons-png.flaticon.com/512/7228/7228079.png" alt="Balloons">
+              <div data-lang="balloons_vi">Bóng bay</div>
+            </div>
+            <div class="item" data-effect="christmas">
+              <img src="https://cdn-icons-png.flaticon.com/512/13381/13381765.png" alt="Christmas">
+              <div data-lang="christmas_vi">Giáng sinh</div>
+            </div>
+            <div class="item" data-effect="nature">
+              <img src="https://cdn-icons-png.flaticon.com/512/5806/5806342.png" alt="Nature">
+              <div data-lang="nature_vi">Thiên nhiên</div>
+            </div>
+            <div class="item" data-effect="ocean">
+              <img src="https://cdn-icons-png.flaticon.com/512/2739/2739396.png" alt="Ocean">
+              <div data-lang="ocean_vi">Đại dương</div>
+            </div>                        
+            <div class="item" data-effect="animals">
+              <img src="https://cdn-icons-png.flaticon.com/512/6285/6285564.png" alt="Animals">
+              <div data-lang="animals_vi">Con vật</div>
+            </div>
+            <div class="item" data-effect="space">
+              <img src="https://cdn-icons-png.flaticon.com/512/2240/2240730.png" alt="Space">
+              <div data-lang="space_vi">Vũ trụ</div>
+            </div>
+            <div class="item" data-effect="study">
+              <img src="https://cdn-icons-png.flaticon.com/512/227/227104.png" alt="Study">
+              <div data-lang="study_vi">Học tập</div>
+            </div>
+            <div class="item" data-effect="colors">
+              <img src="https://cdn-icons-png.flaticon.com/512/458/458842.png" alt="Colors">
+              <div data-lang="colors_vi">Màu sắc</div>
+            </div>
+            <div class="item" data-effect="tet2026">
+              <img src="https://cdn-icons-png.flaticon.com/512/6717/6717188.png" alt="Tết 2026">
+              <div data-lang="tet_vi">Tết 2026</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="input-group">
+          <label data-lang="music">Nhạc nền</label>
+          <div class="grid" id="musicGrid">
+            <div class="item selected" data-music="calm"><span data-lang="music_calm">Buổi sáng</span></div>
+            <div class="item" data-music="piano"><span data-lang="music_piano">Piano nhẹ</span></div>
+            <div class="item" data-music="rain"><span data-lang="music_rain">Mưa và gió</span></div>
+            <div class="item" data-music="ocean"><span data-lang="music_ocean">Sóng biển</span></div>
+            <div class="item" data-music="deepsea"><span data-lang="music_deepsea">Đại dương</span></div>
+            <div class="item" data-music="guitar"><span data-lang="music_guitar">Guitar nhẹ</span></div>
+            <div class="item" data-music="christmas"><span data-lang="music_christmas">Giáng sinh</span></div>
+            <div class="item" data-music="universe"><span data-lang="music_universe">Không gian</span></div>
+            <div class="item" data-music="tet"><span data-lang="music_tet">Nhạc Xuân</span></div>            
+            <div class="item" data-music="none"><span data-lang="music_none">Không nhạc</span></div>
+
+          </div>
+        </div>
+        
+        <div class="actions">
+          <button class="btn btn-secondary" onclick="location.reload()" data-lang="cancel">Hủy</button>
+          <button class="btn btn-primary" id="startBtn" data-lang="start">Bắt đầu ngay</button>
+        </div>
+        <!-- ===== DÒNG CREDIT ĐẸP ===== -->
+        <div style="margin-top: 20px; padding: 12px 0; text-align: center; font-size: 0.88rem; color: #666; border-top: 1px solid #e0e0e0;">
+          Made with <span style="color: #e25555;">♥</span> by 
+          <strong style="color: #1a73e8;">Lâm Chí Phương</strong><br>
+          <small style="color: #999; font-weight: normal;">lamchiphuong.work@gmail.com | Màn hình chờ cho lớp online của bạn</small>
+        </div>
+        <!-- ===== HẾT CREDIT ===== -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Màn hình chờ -->
+  <div id="waitingScreen">
+    <div class="waiting-content">
+      <div class="message" id="msgDisplay"></div>
+      <div class="timer" id="timerDisplay">10:00</div>
+      <div class="subtitle" id="subtitleText">Lớp học sẽ bắt đầu sau vài phút nữa...</div>
+    </div>
+    <div class="control-bar">
+      <button class="ctrl-btn" id="toggleSound" title="Sound"><i class="fas fa-volume-up" id="soundIcon"></i></button>
+      <button class="ctrl-btn" id="fullscreenBtn" title="Fullscreen"><i class="fas fa-expand"></i></button>
+    </div>
+    <div id="effectLayer" class="bg-effect"></div>
+  </div>
+
+  <audio id="bgMusic" loop></audio>
+
+  <script>
+    const translations = {
+      vi: {
+        header: "Cấu hình màn hình chờ lớp học",
+        language: "Ngôn ngữ / Language",
+        welcome: "Thông điệp chào mừng",
+        time: "Thời gian chờ (phút)",
+        effect: "Chọn hiệu ứng nền",
+        music: "Nhạc nền",
+        cancel: "Hủy",
+        start: "Bắt đầu ngay",
+        defaultMsg: "Chào mừng các em đến với lớp học online của chúng ta!",
+        subtitle: "Lớp học sẽ bắt đầu sau vài phút nữa...",
+        classStarting: "Lớp học bắt đầu ngay bây giờ!",
+
+        balloons_vi: "Bóng bay", nature_vi: "Thiên nhiên", ocean_vi: "Đại dương", christmas_vi: "Giáng sinh", animals_vi: "Con vật",
+        space_vi: "Vũ trụ", study_vi: "Học tập", colors_vi: "Màu sắc", tet_vi: "Tết 2026",
+        music_calm: "Buổi sáng", music_piano: "Piano nhẹ", music_rain: "Mưa và gió",
+        music_ocean: "Sóng biển", music_deepsea: "Đại dương", music_guitar: "Guitar nhẹ", music_christmas: "Giáng sinh", 
+        music_universe: "Không gian",  music_tet: "Nhạc Xuân", music_none: "Không nhạc",
+      },
+      en: {
+        header: "Online Class Waiting Room Settings",
+        language: "Language",
+        welcome: "Welcome Message",
+        time: "Waiting Time (minutes)",
+        effect: "Choose Background Effect",
+        music: "Background Music",
+        cancel: "Cancel",
+        start: "Start Now",
+        defaultMsg: "Welcome to our online class!",
+        subtitle: "Our class will start in a few minutes...",
+        classStarting: "Our class starts now!",
+
+        balloons_vi: "Balloons", nature_vi: "Nature", ocean_vi: "Ocean", christmas_vi: "Christmas", animals_vi: "Cute Animals",
+        space_vi: "Space", study_vi: "Study", colors_vi: "Colors", tet_vi: "Tết 2026",
+        music_calm: "Calm Morning", music_piano: "Soft Piano", music_rain: "Rain & Wind",
+        music_ocean: "Ocean Waves", music_deepsea: "Deep Sea", music_guitar: "Soft Guitar", music_christmas: "Christmas Song", 
+        music_universe: "Space", music_tet: "Tet music", music_none: "No Music"
+      }
+    };
+
+    const musicList = {
+      none: null,
+      calm: "https://cdn.pixabay.com/audio/2022/11/11/audio_8e6499a04b.mp3",
+      piano: "https://cdn.pixabay.com/audio/2025/12/05/audio_3580f915fd.mp3",
+      rain: "https://cdn.pixabay.com/audio/2023/03/21/audio_49fbafc135.mp3",
+      ocean: "https://cdn.pixabay.com/audio/2025/08/17/audio_7f0f710ebf.mp3",
+      deepsea: "https://cdn.pixabay.com/audio/2024/12/30/audio_09ecffdb52.mp3",
+      guitar: "https://cdn.pixabay.com/audio/2025/09/08/audio_5481d8dbfb.mp3",
+      universe: "https://cdn.pixabay.com/audio/2025/05/29/audio_5102e8f60a.mp3",
+      christmas: "https://cdn.pixabay.com/audio/2021/12/16/audio_ff41b6024e.mp3",
+      tet: "https://cdn.pixabay.com/audio/2025/09/18/audio_a84448dcba.mp3"
+    };
+
+    const audio = document.getElementById('bgMusic');
+    const soundIcon = document.getElementById('soundIcon');
+    let isMuted = false;
+    let currentLang = 'vi';
+
+    function applyLanguage(lang) {
+      currentLang = lang;
+      document.querySelectorAll('[data-lang]').forEach(el => {
+        const key = el.getAttribute('data-lang');
+        if (translations[lang][key]) el.textContent = translations[lang][key];
+      });
+
+      const textarea = document.getElementById('welcomeMsg');
+      const currentText = textarea.value.trim();
+
+      // Nếu đang là bản mặc định của tiếng Việt hoặc tiếng Anh → đổi theo ngôn ngữ mới
+      if (currentText === translations.vi.defaultMsg || 
+          currentText === translations.en.defaultMsg ||
+          currentText === '') {
+        textarea.value = translations[lang].defaultMsg;
+      }
+      // Nếu người dùng đã tự sửa → giữ nguyên nội dung đó
+    }
+
+    document.querySelectorAll('[data-lang="vi"], [data-lang="en"]').forEach(item => {
+      item.addEventListener('click', () => {
+        document.querySelectorAll('[data-lang="vi"], [data-lang="en"]').forEach(i => i.classList.remove('selected'));
+        item.classList.add('selected');
+        applyLanguage(item.getAttribute('data-lang'));
+      });
+    });
+
+    document.querySelectorAll('.item').forEach(item => {
+      if (!item.hasAttribute('data-lang') || !['vi','en'].includes(item.getAttribute('data-lang'))) {
+        item.addEventListener('click', () => {
+          const parent = item.parentElement;
+          parent.querySelectorAll('.item').forEach(i => i.classList.remove('selected'));
+          item.classList.add('selected');
+        });
+      }
+    });
+
+    document.getElementById('fullscreenBtn').onclick = () => {
+      if (!document.fullscreenElement) document.documentElement.requestFullscreen();
+      else document.exitFullscreen();
+    };
+
+    document.getElementById('toggleSound').onclick = () => {
+      isMuted = !isMuted;
+      audio.muted = isMuted;
+      soundIcon.classList.toggle('fa-volume-up', !isMuted);
+      soundIcon.classList.toggle('fa-volume-mute', isMuted);
+    };
+
+    document.getElementById('startBtn').onclick = () => {
+      const msg = document.getElementById('welcomeMsg').value.trim() || translations[currentLang].defaultMsg;
+      const mins = parseInt(document.getElementById('waitTime').value) || 10;
+      const effect = document.querySelector('[data-effect].selected')?.dataset.effect || 'balloons';
+      const selectedMusicKey = document.querySelector('[data-music].selected')?.dataset.music || 'none';
+
+      document.getElementById('msgDisplay').textContent = msg;
+      document.getElementById('subtitleText').textContent = translations[currentLang].subtitle;
+      document.getElementById('configPopup').style.display = 'none';
+      document.getElementById('waitingScreen').style.display = 'block';
+
+      startTimer(mins);
+      startEffect(effect);
+
+      if (selectedMusicKey !== 'none' && musicList[selectedMusicKey]) {
+        audio.src = musicList[selectedMusicKey];
+        audio.volume = 0.35;
+        audio.play().catch(() => {});
+        isMuted = false;
+        soundIcon.classList.remove('fa-volume-mute'); soundIcon.classList.add('fa-volume-up');
+      } else {
+        audio.src = ''; audio.pause();
+        isMuted = true;
+        soundIcon.classList.remove('fa-volume-up'); soundIcon.classList.add('fa-volume-mute');
+      }
+    };
+
+    function startTimer(m) {
+      let s = m * 60;
+      const timerEl = document.getElementById('timerDisplay');
+      const subtitleEl = document.getElementById('subtitleText');
+      const int = setInterval(() => {
+        s--;
+        const min = String(Math.floor(s/60)).padStart(2,'0');
+        const sec = String(s%60).padStart(2,'0');
+        timerEl.textContent = `${min}:${sec}`;
+        if (s <= 0) {
+          clearInterval(int);
+          timerEl.style.color = '#34a853';
+          subtitleEl.textContent = translations[currentLang].classStarting;
+        }
+      }, 1000);
+    }
+
+    // ============= PHÁO HOA CHUẨN TẾT – ÂM THANH CHỈ PHÁT 1 LẦN KHI BAY LÊN =============
+    function createFirework() {
+      const layer = document.getElementById('effectLayer');
+      const colors = ['#ff0000','#ffd700','#ff8c00','#ff1493','#00ff00','#00ffff','#ff4500','#ff69b4','#ffffff'];
+      const x = 200 + Math.random() * (innerWidth - 400);
+      const y = 100 + Math.random() * 200;
+
+      // 1. PHÁT ÂM THANH DUY NHẤT (phíuuuu + bùm trong cùng 1 file)
+      if (!audio.muted) {
+        const sound = new Audio('https://cdn.pixabay.com/audio/2025/10/12/audio_549cb1e9c3.mp3');
+        sound.volume = 0.7;
+        // đã tăng tốc sẵn 1.5× trong file → không cần playbackRate nữa
+        sound.play().catch(() => {});
+      }
+
+      // 2. ĐÚNG 1000ms SAU MỚI CHO PHÁO BẮT ĐẦU BAY LÊN → KHỚP HOÀN HẢO
+      setTimeout(() => {
+        const rocket = document.createElement('div');
+        rocket.style.cssText = `position:absolute;width:7px;height:7px;background:#fff;border-radius:50%;left:${x}px;top:${innerHeight}px;box-shadow:0 0 15px #fff;z-index:5;`;
+        layer.appendChild(rocket);
+
+        let posY = innerHeight;
+        const rise = setInterval(() => {
+          posY -= 10;  // tốc độ bay chậm đẹp
+          rocket.style.top = posY + 'px';
+
+          if (posY <= y) {
+            clearInterval(rise);
+            rocket.remove();
+
+            // → KHÔNG PHÁT THÊM ÂM THANH NÀO Ở ĐÂY NỮA
+
+            // Nổ chùm 70 tia
+            for (let i = 0; i < 70; i++) {
+              const p = document.createElement('div');
+              const angle = (Math.PI * 2 * i) / 70 + (Math.random()-0.5)*0.35;
+              const speed = 7 + Math.random()*9;
+              const color = colors[Math.floor(Math.random()*colors.length)];
+              p.style.cssText = `position:absolute;width:9px;height:9px;background:${color};border-radius:50%;left:${x}px;top:${y}px;box-shadow:0 0 22px ${color};`;
+              layer.appendChild(p);
+
+              let px = x, py = y, vx = Math.cos(angle)*speed, vy = Math.sin(angle)*speed, op = 1;
+              const move = () => {
+                vx *= 0.96; vy *= 0.96; vy += 0.38;
+                px += vx; py += vy; op -= 0.011;
+                p.style.left = px + 'px'; p.style.top = py + 'px';
+                p.style.opacity = op; p.style.transform = `scale(${op})`;
+                if (op > 0) requestAnimationFrame(move);
+                else p.remove();
+              };
+              move();
+            }
+          }
+        }, 16);
+      }, 800); // đúng 0.8 giây sau âm thanh mới bay lên
+    }
+
+    // ←←← Thay luôn cả đoạn gọi pháo hoa trong startEffect (chỉ phần tet2026)
+    function startEffect(name) {
+      const layer = document.getElementById('effectLayer');
+      layer.innerHTML = '';
+      document.getElementById('waitingScreen').style.background = '#202124';
+if (name === 'ocean') {
+        document.getElementById('waitingScreen').style.background = 'linear-gradient(180deg, #001a33 0%, #003366 40%, #0066cc 100%)';
+
+        // Lớp sóng nhẹ chuyển động
+        const waveLayer = document.createElement('div');
+        waveLayer.style.cssText = `
+          position:absolute;inset:0;pointer-events:none;
+          background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.08) 50%, transparent 100%);
+          background-size: 200px 100%;
+          animation: wave 18s linear infinite;
+        `;
+        layer.appendChild(waveLayer);
+
+        // Bọt khí nổi lên
+        setInterval(() => {
+          const bubble = document.createElement('div');
+          const size = Math.random() * 20 + 10;
+          const left = Math.random() * 100;
+          bubble.style.cssText = `
+            position:absolute;width:${size}px;height:${size}px;
+            background:rgba(255,255,255,0.25);border-radius:50%;
+            left:${left}%;bottom:-50px;opacity:0;
+            animation: bubbleRise ${8 + Math.random()*7}s linear forwards;
+            box-shadow:inset 0 0 15px rgba(255,255,255,0.4);
+          `;
+          layer.appendChild(bubble);
+          setTimeout(() => bubble.remove(), 15000);
+        }, 600);
+
+        // Danh sách cá + sinh vật biển
+        const fishes = [
+          "https://cdn-icons-png.flaticon.com/512/6951/6951873.png", //cá hề
+          "https://cdn-icons-png.flaticon.com/512/1862/1862063.png", //cá mập
+          "https://cdn-icons-png.flaticon.com/512/11470/11470940.png", //cá ngừ
+          "https://cdn-icons-png.flaticon.com/512/6789/6789603.png", //cá kiếm
+          "https://cdn-icons-png.flaticon.com/512/170/170471.png", //manta ray
+          "https://cdn-icons-png.flaticon.com/512/3751/3751199.png", //blue tang
+          "https://cdn-icons-png.flaticon.com/512/3668/3668612.png", //cá nóc
+          "https://cdn-icons-png.flaticon.com/512/1476/1476081.png", //sao biển
+          "https://cdn-icons-png.flaticon.com/512/10403/10403510.png", //cá ngựa
+          "https://cdn-icons-png.flaticon.com/512/6660/6660445.png" //sứa
+        ];
+
+        setInterval(() => {
+          const fish = new Image();
+          fish.src = fishes[Math.floor(Math.random() * fishes.length)];
+          const size = Math.random() * 70 + 50;
+          const duration = Math.random() * 25 + 20;
+          const startY = Math.random() * 80 + 10;
+          const direction = Math.random() > 0.5 ? 1 : -1;
+
+          fish.style.cssText = `
+            position:absolute;width:${size}px;height:auto;
+            left:${direction > 0 ? -150 : innerWidth + 50}px;
+            top:${startY}%;
+            pointer-events:none;filter:drop-shadow(0 4px 12px rgba(0,0,0,0.4));
+            opacity:0.85;transform:scaleX(${direction});
+            animation: swim ${duration}s linear forwards;
+            z-index:3;
+          `;
+
+          // 50% cá bơi lượn lên xuống nhẹ
+          if (Math.random() > 0.5) {
+            fish.style.animation = `swim ${duration}s linear forwards, floatUpDown ${3 + Math.random()*4}s ease-in-out infinite`;
+          }
+
+          layer.appendChild(fish);
+          setTimeout(() => fish.remove(), duration * 1000 + 2000);
+        }, 2500);
+
+        return;
+      }
+      if (name === 'tet2026') {
+        // Nền đỏ vàng + hoa mai hoa đào rơi (giữ nguyên như cũ)
+        document.getElementById('waitingScreen').style.background = 'linear-gradient(135deg, #8B0000 0%, #FF4500 50%, #FFD700 100%)';
+        document.getElementById('waitingScreen').style.backgroundSize = '400% 400%';
+        document.getElementById('waitingScreen').style.animation = 'gradient 25s ease infinite';
+
+        const tetFlowers = [
+          "https://cdn-icons-png.flaticon.com/512/19034/19034375.png",
+          "https://cdn-icons-png.flaticon.com/512/6717/6717188.png",
+          "https://cdn-icons-png.flaticon.com/512/14231/14231241.png",
+          "https://cdn-icons-png.flaticon.com/512/16919/16919236.png"
+        ];
+        setInterval(() => {
+          const flower = new Image();
+          flower.src = tetFlowers[Math.floor(Math.random() * tetFlowers.length)];
+          flower.style.position = 'absolute';
+          flower.style.width = (Math.random() * 50 + 40) + 'px';
+          flower.style.left = Math.random() * 100 + '%';
+          flower.style.top = '-100px';
+          flower.style.pointerEvents = 'none';
+          flower.style.animation = 'fall 12s linear forwards';
+          flower.style.transform = `rotate(${Math.random() * 360}deg)`;
+          flower.style.filter = 'drop-shadow(0 4px 12px rgba(0,0,0,0.4))';
+          flower.style.opacity = '0.9';
+          layer.appendChild(flower);
+          setTimeout(() => flower.remove(), 13000);
+        }, 400);
+
+        // PHÁO HOA NGẪU NHIÊN 3–15 GIÂY MỘT LẦN
+        function scheduleNextFirework() {
+          const delay = Math.random() * 12000 + 3000; // 3 đến 15 giây
+          setTimeout(() => {
+            createFirework();
+            scheduleNextFirework();
+          }, delay);
+        }
+        scheduleNextFirework();
+
+        return;
+      }
+
+      // Các hiệu ứng khác giữ nguyên 100% như code gốc của bạn...
+
+      // ================== CÁC HIỆU ỨNG CŨ GIỮ NGUYÊN 100% ==================
+      if (name === 'colors') {
+        layer.style.background = 'linear-gradient(45deg, #ff9a9e, #fad0c4, #a18cd1, #fbc2eb, #84fab0, #8ec5fc, #ffd1ff)';
+        layer.style.backgroundSize = '600% 600%';
+        layer.style.animation = 'gradient 28s ease infinite';
+        return;
+      }
+
+      if (name === 'space') {
+        document.getElementById('waitingScreen').style.background = '#000';
+        for (let i = 0; i < 280; i++) {
+          const star = document.createElement('div');
+          const size = Math.random() * 3.5 + 0.5;
+          star.style.cssText = `position:absolute;width:${size}px;height:${size}px;background:#fff;border-radius:50%;left:${Math.random()*100}%;top:${Math.random()*100}%;animation:twinkle ${Math.random()*4+2}s infinite;box-shadow:0 0 ${size*6}px #fff;`;
+          layer.appendChild(star);
+        }
+        setInterval(() => {
+          const ufo = new Image();
+          ufo.src = 'https://cdn-icons-png.flaticon.com/512/2847/2847421.png';
+          ufo.style.cssText = 'position:absolute;width:80px;left:-100px;top:' + (Math.random()*70+15) + '%;animation:fly 14s linear forwards;filter:drop-shadow(0 0 20px #fff);';
+          layer.appendChild(ufo);
+          setTimeout(() => ufo.remove(), 15000);
+        }, 12000);
+        setInterval(() => {
+          const meteor = document.createElement('div');
+          meteor.style.cssText = 'position:absolute;width:4px;height:80px;background:linear-gradient(to bottom,#fff,transparent);left:' + Math.random()*60 + '%;top:-100px;transform:rotate(-45deg);animation:fall 2.5s linear forwards;box-shadow:0 0 20px #fff;';
+          layer.appendChild(meteor);
+          setTimeout(() => meteor.remove(), 3000);
+        }, 5000);
+        return;
+      }
+
+      const icons = {
+        balloons: ["https://cdn-icons-png.flaticon.com/512/7228/7228079.png","https://cdn-icons-png.flaticon.com/512/2089/2089845.png","https://cdn-icons-png.flaticon.com/512/3995/3995633.png", "https://cdn-icons-png.flaticon.com/512/13138/13138297.png"],
+        christmas: ["https://cdn-icons-png.flaticon.com/512/3792/3792003.png","https://cdn-icons-png.flaticon.com/512/9004/9004824.png","https://cdn-icons-png.flaticon.com/512/2299/2299172.png","https://cdn-icons-png.flaticon.com/512/595/595461.png","https://cdn-icons-png.flaticon.com/512/1409/1409305.png","https://cdn-icons-png.flaticon.com/512/642/642000.png"],
+        nature: ["https://cdn-icons-png.flaticon.com/512/5806/5806342.png","https://cdn-icons-png.flaticon.com/512/346/346167.png","https://cdn-icons-png.flaticon.com/512/1497/1497177.png"],
+        animals: ["https://cdn-icons-png.flaticon.com/512/9011/9011712.png","https://cdn-icons-png.flaticon.com/512/6988/6988878.png","https://cdn-icons-png.flaticon.com/512/1623/1623681.png","https://cdn-icons-png.flaticon.com/512/4478/4478312.png"],
+        study: ["https://cdn-icons-png.flaticon.com/512/2436/2436702.png","https://cdn-icons-png.flaticon.com/512/227/227104.png","https://cdn-icons-png.flaticon.com/512/5832/5832387.png","https://cdn-icons-png.flaticon.com/512/436/436303.png"]
+      };
+
+      const iconList = icons[name] || icons.balloons;
+
+      // Chỉ nature và christmas là rơi từ trên xuống
+      const isFalling = (name === 'nature' || name === 'christmas');
+      // Bóng bay bay chéo lên, còn lại bay ngang hoặc rơi
+      const useFlyAnimation = (name === 'balloons' || name === 'animals' || name === 'study');
+
+      const intervalTime = isFalling ? 400 : 800;
+
+      setInterval(() => {
+        const img = new Image();
+        img.src = iconList[Math.floor(Math.random() * iconList.length)];
+        img.style.position = 'absolute';
+        img.style.width = (Math.random() * 60 + 40) + 'px';
+        img.style.pointerEvents = 'none';
+        img.style.filter = 'drop-shadow(0 6px 16px rgba(0,0,0,0.4))';
+        img.style.opacity = '0.9';
+
+        if (isFalling) {
+          // Rơi từ trên xuống (christmas + nature)
+          img.style.left = Math.random() * 90 + '%';
+          img.style.top = '-100px';
+          img.style.animation = 'fall 12s linear forwards';
+        } else {
+          // Bay chéo từ dưới lên hoặc ngang
+          img.style.left = Math.random() * 85 + '%';
+          img.style.bottom = '100vh';
+          img.style.animation = useFlyAnimation ? 'fly 18s linear forwards' : 'fly 20s linear forwards';
+        }
+
+        img.style.transform = `rotate(${Math.random() * 360}deg)`;
+        layer.appendChild(img);
+        setTimeout(() => img.remove(), 21000);
+      }, intervalTime);
+    }
+  </script>
+</body>
+</html>
